@@ -1,5 +1,8 @@
 '''Pyhon class for accesing the a database by returning a list of dictionaries from a query.
-Works great in combination with the tabulate package.'''
+Works great in combination with the tabulate package.
+
+Copyright (C) 2018 Lord Wolfenstein
+'''
 import mysql.connector
 
 class databass:
