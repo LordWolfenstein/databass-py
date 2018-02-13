@@ -1,4 +1,4 @@
-'''Pyhon module for accesing the a database by returning a list of dictionaries from a query.
+'''Pyhon class for accesing the a database by returning a list of dictionaries from a query.
 Works great in combination with the tabulate package.'''
 import mysql.connector
 
