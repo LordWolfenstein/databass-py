@@ -1,0 +1,2 @@
+# databass
+Python database interface
