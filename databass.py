@@ -18,6 +18,8 @@ And you can feed the bass. Bass feed is much funnier than Atom feed.
 
 Copyright (C) 2018 Lord Wolfenstein
 
+https://github.com/LordWolfenstein/databass
+
 MIT License
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
