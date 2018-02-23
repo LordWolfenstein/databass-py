@@ -102,7 +102,7 @@ class databass:
 
     def count(self, table):
         '''Returns the number of rows in a given table.'''
-        return self.run("SELECT count(*) FROM " + table)[0]["count(*)"]
+        return self.run("SELECT count(*) FROM `{}`".format(table))[0]["count(*)"]
 
     def name(self):
         '''Returns the name of the currently selected database.'''
@@ -119,15 +119,15 @@ class databass:
 
     def info(self, table):
         '''Returns detailed table info in dictionary form'''
-        return self.run("DESCRIBE " + table)
+        return self.run("DESCRIBE `{}`".format(table))
 
     def code(self, table):
         '''Returns the code used to create the table'''
-        return self.run("SHOW CREATE TABLE " + table)[0]["Create Table"]
+        return self.run("SHOW CREATE TABLE `{}`".format(table))[0]["Create Table"]
 
     def drop(self, table):
         '''Drops the table'''
-        return self.run("DROP TABLE " + table)
+        return self.run("DROP TABLE `{}`".format(table))
 
     def create(self, tableconfigs):
         '''Creates a table according to the given condig.
