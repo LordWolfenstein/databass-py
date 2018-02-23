@@ -19,6 +19,4 @@ from joined SELECTS.))
 Databass is a punmanteau from "data" and "bass" because bass sound like base.
 And you can feed the bass. Bass feed is much funnier than Atom feed.
 
-Copyright (C) 2018 Lord Wolfenstein
-
 ![A picture of a data bass.](https://raw.githubusercontent.com/LordWolfenstein/databass/master/databass.png)
