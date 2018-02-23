@@ -72,7 +72,7 @@ class databass:
         '''Runs a query.
            Returns a list of dictionaries on successfull SELECT.
         '''
-        print("run:", sql)
+        #print("run:", sql)
         try:
             self._cursor.execute(sql)
         except MariaDB.Error as err:
