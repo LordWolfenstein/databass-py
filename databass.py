@@ -46,7 +46,7 @@ import json
 
 class databass:
     '''Class that simplifies database connections.'''
-    __version__ = 0.2
+    __version__ = 0.3
     
     def __init__(self, config):
         '''Config format:
