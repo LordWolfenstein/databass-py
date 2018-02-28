@@ -379,6 +379,18 @@ class databass:
         
         feed: a json string with atleast the keyword "bassfeed" in it.
         '''
+        if "`" in feed:
+            print()
+            print("` in feed.")
+            print("` is not alowed in feed.")
+            print("Suspected SQL injection.")
+            print("Suspected malicious feed.")
+            print("Feed not proccessed.")
+            print("-"*25)
+            print(feed)
+            print("-"*25)
+            print()
+            return False
         feeds = json.loads(feed)
         ret = ""
         for f in feeds["bassfeed"]:
