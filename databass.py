@@ -152,21 +152,21 @@ class databass:
         return ret
 
     def info(self, table):
+        '''Returns detailed table info in dictionary form'''
         if table not in self.tables():
             return False
-        '''Returns detailed table info in dictionary form'''
         return self.run("DESCRIBE `{}`".format(table))
 
     def code(self, table):
+        '''Returns the code used to create the table'''
         if table not in self.tables():
             return False
-        '''Returns the code used to create the table'''
         return self.run("SHOW CREATE TABLE `{}`".format(table))[0]["Create Table"]
 
     def drop(self, table):
+        '''Drops the table'''
         if table not in self.tables():
             return False
-        '''Drops the table'''
         return self.run("DROP TABLE `{}`".format(table))
 
     def create(self, tableconfigs):
