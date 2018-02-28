@@ -56,7 +56,7 @@ class databass:
                   'port'     : '3306',
                   'database' : 'test'}'''
         self._bass = MariaDB.connect(**config)
-        self._cursor  = self._bass.cursor()
+        self._cursor  = self._bass.cursor(dictionary=True)
 
         # Feed eating functions
         self._feedeaters ={}
@@ -77,23 +77,10 @@ class databass:
             self._cursor.execute(sql)
         except MariaDB.Error as err:
             return "Database Error: " + str(err)
-        names = self._cursor.description
-        if names:
-            n = []
-            for i in names:
-                n.append(i[0])
-                ret = []
+        if self._cursor.description:
+            ret=[]
             for row in self._cursor:
-                r = {}
-                i = 0
-                for column in row:
-					#if type(column)==unicode or type(column) == int or type(column) == str: # for Python2 use this
-                    if type(column) == int or type(column) == str:
-                        r[n[i]] = column
-                    else:
-                        r[n[i]] = str(column)
-                    i += 1
-                ret.append(r)
+                ret.append(row)
             self._bass.commit()
             return ret
         else:
