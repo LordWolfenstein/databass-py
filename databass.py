@@ -56,7 +56,7 @@ class databass:
                   'port'     : '3306',
                   'database' : 'test'}'''
         self._bass = MariaDB.connect(**config)
-        self._cursor  = self._bass.cursor(dictionary=True)
+        #self._cursor  = self._bass.cursor(dictionary=True)
 
         # Feed eating functions
         self._feedeaters ={}
@@ -72,19 +72,54 @@ class databass:
         '''Runs a query.
            Returns a list of dictionaries on successfull SELECT.
         '''
+        cursor = self._bass.cursor(dictionary=True)
         #print("run:", sql)
         try:
-            self._cursor.execute(sql)
+            cursor.execute(sql)
         except MariaDB.Error as err:
             return "Database Error: " + str(err)
-        if self._cursor.description:
+        if cursor.description:
             ret=[]
-            for row in self._cursor:
+            for row in cursor:
                 ret.append(row)
             self._bass.commit()
+            cursor.close()
             return ret
         else:
             self._bass.commit()
+            cursor.close()
+            return True
+
+    def _run(self, sql, values):
+        '''A runs prepared statament and returns a list of dicionaries.
+        '''
+        cursor = self._bass.cursor(prepared=True)
+        print("run:", sql, values)
+        print("sql    =", sql)
+        print("values =", values)
+        try:
+            cursor.execute(sql, values)
+        except MariaDB.Error as err:
+            return "Database Error: " + str(err)
+        if cursor.description:
+            ret = []
+            for row in cursor:
+                r = {}
+                i = 0
+                for column in row:
+					#if type(column)==unicode or type(column) == int or type(column) == str: # for Python2 use this
+                    if type(column) == int or type(column) == str:
+                        r[cursor.column_names[i]] = column
+                    else:
+                        r[cursor.column_names[i]] = str(column)
+                    i += 1
+                ret.append(r)
+            self._bass.commit()
+            cursor.close()
+            return ret
+        else:
+            self._bass.commit()
+            cursor.close()
             return True
 
     def count(self, table):
@@ -103,6 +138,14 @@ class databass:
         for table in result:
             tables.append(table["Tables_in_" + name])
         return tables
+
+    def colums(self, table):
+        '''Returns all the column in the table'''
+        ret = []
+        columns = self.run("SHOW COLUMNS FROM `{}`".format(table))
+        for c in columns:
+            ret.append(c["Field"])
+        return ret
 
     def info(self, table):
         '''Returns detailed table info in dictionary form'''
@@ -187,8 +230,16 @@ class databass:
         '''Inserts data in to the table.
         data: a dictionary or a list of dictionaries with keywords equal to column names.
         '''
+        if table not in self.tables():
+            return False
         if type(data)==dict:
             data = [data]
+        tableColums = self.colums(table)
+        for d in data:
+            for column in d.keys():
+                if column not in tableColums:
+                    return False
+
         sql = "INSERT INTO `{}` (".format(table)
         for d in data[0]:
             sql += "`{}`, ".format(d)
@@ -201,7 +252,7 @@ class databass:
         sql = sql[:-2]
         return self.run(sql)
     
-    def select(self, table, where={}, wherenot={}, extra="", columns = ["*"]):
+    def select(self, table, where={}, wherenot={}, columns = ["*"]):
         '''Selects rows from the given tabel where the contitions in condition is met.
         Currently only is equal and not equal conditions work. Making less than and 
         grater than still requires handwritten SQL-code.
@@ -209,9 +260,21 @@ class databass:
         By default gets all columns. Since you are working with dictionaries just pick
         what you need and ignore the rest. We are trying to be as Pythonic as possible 
         here. That is why the columns last. You can ignore them.
+        '''
+        if table not in self.tables():
+            return False
+        tableColums = self.colums(table)
+        for column in where.keys():
+            if column not in tableColums:
+                return False
+        for column in wherenot.keys():
+            if column not in tableColums:
+                return False
+        if columns != ["*"]:
+            for column in columns:
+                if column not in tableColums:
+                    return False
         
-        Use extra for 'ORDER BY', 'LIMIT', and such.
-       '''
         sql = "SELECT {} FROM `{}`".format(", ".join(columns), table)
         if where!={} or wherenot!={}:
             sql += " WHERE"
@@ -223,12 +286,24 @@ class databass:
             for w in wherenot:
                 sql += " `{}`!='{}' AND".format(w, wherenot[w])
             sql = sql[:-4]
-        return self.run(sql + " " + extra)
+        return self.run(sql)
 
     def update(self, table, data, where={}, wherenot={}):
         '''Updates like a it is a combination of insert and select. 
         At least one of where and wherenot is required.'''
-
+        if table not in self.tables():
+            return False
+        tableColums = self.colums(table)
+        for column in where.keys():
+            if column not in tableColums:
+                return False
+        for column in wherenot.keys():
+            if column not in tableColums:
+                return False
+        for column in data.keys():
+            if column not in tableColums:
+                return False
+        
         sql = "UPDATE {} SET ".format(table)
         for d in data:
             sql += "`{}`='{}', ".format(d, data[d])
@@ -249,6 +324,15 @@ class databass:
         
         DELETE FROM t1 WHERE c1
         '''
+        if table not in self.tables():
+            return False
+        tableColums = self.colums(table)
+        for column in where.keys():
+            if column not in tableColums:
+                return False
+        for column in wherenot.keys():
+            if column not in tableColums:
+                return False
         sql = "DELETE FROM `{}` WHERE".format(table)
         if where!={}:
             for w in where:
@@ -262,6 +346,10 @@ class databass:
 
     def AlterTable(self, table, add=[], drop=[]):
         '''Alters a table'''
+        if table not in self.tables():
+            return False
+
+
         sql = "ALTER TABLE `{}`".format(table)
         if type(drop)==str:
             drop = [drop]
@@ -366,18 +454,18 @@ class databass:
         
         feed: a json string with atleast the keyword "bassfeed" in it.
         '''
-        if "`" in feed:
-            print()
-            print("` in feed.")
-            print("` is not alowed in feed.")
-            print("Suspected SQL injection.")
-            print("Suspected malicious feed.")
-            print("Feed not proccessed.")
-            print("-"*25)
-            print(feed)
-            print("-"*25)
-            print()
-            return False
+        #if "`" in feed:
+        #    print()
+        #    print("` in feed.")
+        #    print("` is not alowed in feed.")
+        #    print("Suspected SQL injection.")
+        #    print("Suspected malicious feed.")
+        #    print("Feed not proccessed.")
+        #    print("-"*25)
+        #    print(feed)
+        #    print("-"*25)
+        #    print()
+        #    return False
         feeds = json.loads(feed)
         ret = ""
         for f in feeds["bassfeed"]:
@@ -404,6 +492,8 @@ def printrows(rows, format = "fancy_grid"):
     if type(rows)==list:
         if len(rows) > 0:
             print(tabulate([i.values() for i in rows], rows[0].keys(), format))
+        else:
+            print(rows)
     else:
         print(rows)
     
