@@ -1,6 +1,4 @@
 # Databass
-An attempt to make the mysql.connector more Pythonic by having queries return a list of dictionaries.
-
 Databass is a interface meant to simplyfy database transactions in Python 
 by letting you use dictionaries and list of dictionaries for your transactions
 instead of writing pure SQL-code. Thus easily letting you generate and read 
