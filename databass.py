@@ -124,6 +124,8 @@ class databass:
 
     def count(self, table):
         '''Returns the number of rows in a given table.'''
+        if table not in self.tables():
+            return False
         return self.run("SELECT count(*) FROM `{}`".format(table))[0]["count(*)"]
 
     def name(self):
@@ -141,6 +143,8 @@ class databass:
 
     def colums(self, table):
         '''Returns all the column in the table'''
+        if table not in self.tables():
+            return False
         ret = []
         columns = self.run("SHOW COLUMNS FROM `{}`".format(table))
         for c in columns:
@@ -148,14 +152,20 @@ class databass:
         return ret
 
     def info(self, table):
+        if table not in self.tables():
+            return False
         '''Returns detailed table info in dictionary form'''
         return self.run("DESCRIBE `{}`".format(table))
 
     def code(self, table):
+        if table not in self.tables():
+            return False
         '''Returns the code used to create the table'''
         return self.run("SHOW CREATE TABLE `{}`".format(table))[0]["Create Table"]
 
     def drop(self, table):
+        if table not in self.tables():
+            return False
         '''Drops the table'''
         return self.run("DROP TABLE `{}`".format(table))
 
