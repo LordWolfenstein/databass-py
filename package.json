@@ -1,0 +1,6 @@
+{
+    "dependencies": {
+        "mysql": "latest",
+        "tabulate": "latest"
+    }
+}
