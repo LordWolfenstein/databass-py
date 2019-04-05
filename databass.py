@@ -1,7 +1,7 @@
-'''Databass is a interface meant to simplyfy database transactions in Python 
+'''Databass is a interface meant to simplify database transactions in Python 
 by letting you use dictionaries and list of dictionaries for your transactions
 instead of writing pure SQL-code. Thus easily letting you generate and read 
-JSON-feeds. Preferbly over HTTPS.
+JSON-feeds. Preferably over HTTPS.
 
 The syntax for doing operations and generating feeds is identical. And the 
 result from reading the feed is identical to as if the operation were done
@@ -91,7 +91,7 @@ class databass:
             return True
 
     def _run(self, sql, values):
-        '''A runs prepared statament and returns a list of dicionaries.
+        '''A runs prepared statement and returns a list of dictionaries.
         '''
         cursor = self._bass.cursor(prepared=True)
         print("run:", sql, values)
@@ -170,7 +170,7 @@ class databass:
         return self.run("DROP TABLE `{}`".format(table))
 
     def create(self, tableconfigs):
-        '''Creates a table according to the given condig.
+        '''Creates a table according to the given configuration.
         This used the same syntax that MariaDB used when you DESCRIBE a table
         tableconfigs is a dictionary of the format
         tableconfigs = {
@@ -214,7 +214,7 @@ class databass:
             ]
         }
         '''
-        ret = ""
+        ret = []
         for t in tableconfigs:
             # print(tableconfigs[t])
             sql = "CREATE TABLE `{}` (".format(t)
@@ -224,16 +224,32 @@ class databass:
                 ("NOT NULL" if column["Null"]=="NO" else "") if "NULL" in column else "", 
                 ("DEFAULT({})".format(column["Default"]) if column["Default"]!="None" else "") if "Default" in column else "",
                 column["Extra"] if "Extra" in column else "")
-            sql += "PRIMARY KEY("
             
+            # sql += "PRIMARY KEY("
+            
+            # for column in tableconfigs[t]:
+                # if "Key" in column:
+                    # if column["Key"]=="PRI":
+                        # sql += column["Field"] + ", "
+            # if sql.endswith(", "):
+                # sql = sql[:-2]
+            # sql = sql + ") )"
+            
+            keys = "PRIMARY KEY("
             
             for column in tableconfigs[t]:
                 if "Key" in column:
                     if column["Key"]=="PRI":
-                        sql += column["Field"] + ", "
-            sql = sql[:-2] + ") )"
-            
-            ret += str(self.run(sql))
+                        keys += column["Field"] + ", "
+            if keys.endswith(", "):
+                keys = keys[:-2]
+            keys = keys + ") )"
+            if keys != "PRIMARY KEY() )":
+                sql += keys
+            if sql.endswith(", "):
+                sql = sql[:-2]+")"
+            # print("sql =", sql)
+            ret.append(self.run(sql))
         return ret
         
     def insert(self, table, data):
@@ -263,7 +279,7 @@ class databass:
         return self.run(sql)
     
     def select(self, table, where={}, wherenot={}, columns = ["*"]):
-        '''Selects rows from the given tabel where the contitions in condition is met.
+        '''Selects rows from the given table where the contritions in condition is met.
         Currently only is equal and not equal conditions work. Making less than and 
         grater than still requires handwritten SQL-code.
 
@@ -422,12 +438,12 @@ class databass:
     def GenerateFeed(self, feed):
         '''Generated a json string from the list of feeds in feed.
         This is the thing you are supposed to put in the feed for databass
-        to eat on the other side. It contians the keyword "bassfeed". 
+        to eat on the other side. It contains the keyword "bassfeed". 
         Other then that you can add  whatever server information you like 
-        to the json before you put it in the actuall feed.'''
+        to the json before you put it in the actual feed.'''
         return json.dumps({"bassfeed":feed})
 
-    '''Feed readers, becase a feed is bass food in this case'''
+    '''Feed readers, because a feed is bass food in this case'''
     def EatCreate(self, feed):
         return self.create(feed["tableconfigs"])
 
@@ -467,10 +483,10 @@ class databass:
         #if "`" in feed:
         #    print()
         #    print("` in feed.")
-        #    print("` is not alowed in feed.")
+        #    print("` is not allowed in feed.")
         #    print("Suspected SQL injection.")
         #    print("Suspected malicious feed.")
-        #    print("Feed not proccessed.")
+        #    print("Feed not processed.")
         #    print("-"*25)
         #    print(feed)
         #    print("-"*25)
