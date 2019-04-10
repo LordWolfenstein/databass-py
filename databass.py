@@ -1,14 +1,14 @@
-'''Databass is a interface meant to simplify database transactions in Python 
+'''Databass is a interface meant to simplify database transactions in Python
 by letting you use dictionaries and list of dictionaries for your transactions
-instead of writing pure SQL-code. Thus easily letting you generate and read 
+instead of writing pure SQL-code. Thus easily letting you generate and read
 JSON-feeds. Preferably over HTTPS.
 
-The syntax for doing operations and generating feeds is identical. And the 
+The syntax for doing operations and generating feeds is identical. And the
 result from reading the feed is identical to as if the operation were done
 locally.
 
-(Only tested with Python 3. (Automatic JOIN with dictionaries is on the TODO 
-list. But you can still write your own SQL and get the list of dictionaries 
+(Only tested with Python 3. (Automatic JOIN with dictionaries is on the TODO
+list. But you can still write your own SQL and get the list of dictionaries
 from joined SELECTS.))
 
 NAME
@@ -42,12 +42,13 @@ SOFTWARE.
 '''
 import mysql.connector as MariaDB
 from tabulate import tabulate
+from typing import Union
 import json
 
 class databass:
     '''Class that simplifies database connections.'''
-    __version__ = 0.3
-    
+    __version__ = 0.4
+
     def __init__(self, config):
         '''Config format:
         config = {'user'     : 'root',
@@ -219,14 +220,14 @@ class databass:
             # print(tableconfigs[t])
             sql = "CREATE TABLE `{}` (".format(t)
             for column in tableconfigs[t]:
-                sql += "`{}` {} {} {} {}, ".format(column["Field"], 
-                column["Type"], 
-                ("NOT NULL" if column["Null"]=="NO" else "") if "NULL" in column else "", 
+                sql += "`{}` {} {} {} {}, ".format(column["Field"],
+                column["Type"],
+                ("NOT NULL" if column["Null"]=="NO" else "") if "NULL" in column else "",
                 ("DEFAULT({})".format(column["Default"]) if column["Default"]!="None" else "") if "Default" in column else "",
                 column["Extra"] if "Extra" in column else "")
-            
+
             # sql += "PRIMARY KEY("
-            
+
             # for column in tableconfigs[t]:
                 # if "Key" in column:
                     # if column["Key"]=="PRI":
@@ -234,9 +235,9 @@ class databass:
             # if sql.endswith(", "):
                 # sql = sql[:-2]
             # sql = sql + ") )"
-            
+
             keys = "PRIMARY KEY("
-            
+
             for column in tableconfigs[t]:
                 if "Key" in column:
                     if column["Key"]=="PRI":
@@ -251,7 +252,28 @@ class databass:
             # print("sql =", sql)
             ret.append(self.run(sql))
         return ret
-        
+
+    def insup(self, table: str, data: dict) -> Union[list, str]:
+        '''Inserts if not existing, updates on existing'''
+        if table not in self.tables():
+            return "Error, table not in database"
+        tableColums = self.colums(table)
+        for column in data.keys():
+            if column not in tableColums:
+                return "Error, column not in table"
+
+        sql = "INSERT INTO `{}` (".format(table)
+        for d in data:
+            sql += "`{}`, ".format(d)
+        sql = sql[:-2] + ") VALUES("
+        for d in data:
+            sql += "'{}', ".format(data[d].replace("'", "''"))
+        sql = sql[:-2] + ") ON DUPLICATE KEY UPDATE "
+        for d in data:
+            sql += "{}='{}', ".format(d, data[d].replace("'", "''"))
+        sql = sql[:-2]
+        return self.run(sql)
+
     def insert(self, table, data):
         '''Inserts data in to the table.
         data: a dictionary or a list of dictionaries with keywords equal to column names.
@@ -273,18 +295,18 @@ class databass:
         for l in data:
             sql+= "("
             for d in l:
-                sql += "'{}', ".format(l[d])
+                sql += "'{}', ".format(l[d].replace("'", "''"))
             sql = sql[:-2] + "), "
         sql = sql[:-2]
         return self.run(sql)
-    
+
     def select(self, table, where={}, wherenot={}, columns = ["*"]):
         '''Selects rows from the given table where the contritions in condition is met.
-        Currently only is equal and not equal conditions work. Making less than and 
+        Currently only is equal and not equal conditions work. Making less than and
         grater than still requires handwritten SQL-code.
 
         By default gets all columns. Since you are working with dictionaries just pick
-        what you need and ignore the rest. We are trying to be as Pythonic as possible 
+        what you need and ignore the rest. We are trying to be as Pythonic as possible
         here. That is why the columns last. You can ignore them.
         '''
         if table not in self.tables():
@@ -300,22 +322,22 @@ class databass:
             for column in columns:
                 if column not in tableColums:
                     return False
-        
+
         sql = "SELECT {} FROM `{}`".format(", ".join(columns), table)
         if where!={} or wherenot!={}:
             sql += " WHERE"
         if where!={}:
             for w in where:
-                sql += " `{}`='{}' AND".format(w, where[w])
+                sql += " `{}`='{}' AND".format(w, where[w].replace("'", "''"))
             sql = sql[:-4]
         if wherenot!={}:
             for w in wherenot:
-                sql += " `{}`!='{}' AND".format(w, wherenot[w])
+                sql += " `{}`!='{}' AND".format(w, wherenot[w].replace("'", "''"))
             sql = sql[:-4]
         return self.run(sql)
 
     def update(self, table, data, where={}, wherenot={}):
-        '''Updates like a it is a combination of insert and select. 
+        '''Updates an existing post in the database
         At least one of where and wherenot is required.'''
         if table not in self.tables():
             return False
@@ -329,25 +351,25 @@ class databass:
         for column in data.keys():
             if column not in tableColums:
                 return False
-        
+
         sql = "UPDATE {} SET ".format(table)
         for d in data:
-            sql += "`{}`='{}', ".format(d, data[d])
+            sql += "`{}`='{}', ".format(d, data[d].replace("'", "''"))
         sql = sql[:-2]
         sql += " WHERE"
         if where!={}:
             for w in where:
-                sql += " `{}`='{}' AND".format(w, where[w])
+                sql += " `{}`='{}' AND".format(w, where[w].replace("'", "''"))
             sql = sql[:-4]
         if wherenot!={}:
             for w in wherenot:
-                sql += " `{}`!='{}' AND".format(w, wherenot[w])
+                sql += " `{}`!='{}' AND".format(w, wherenot[w].replace("'", "''"))
             sql = sql[:-4]
-        return self.run(sql)        
+        return self.run(sql)
 
     def delete(self, table, where={}, wherenot={}):
         '''Deletes rows form the table where the conditions is met.
-        
+
         DELETE FROM t1 WHERE c1
         '''
         if table not in self.tables():
@@ -362,11 +384,11 @@ class databass:
         sql = "DELETE FROM `{}` WHERE".format(table)
         if where!={}:
             for w in where:
-                sql += " `{}`='{}' AND".format(w, where[w])
+                sql += " `{}`='{}' AND".format(w, where[w].replace("'", "''"))
             sql = sql[:-4]
         if wherenot!={}:
             for w in wherenot:
-                sql += " `{}`!='{}' AND".format(w, wherenot[w])
+                sql += " `{}`!='{}' AND".format(w, wherenot[w].replace("'", "''"))
             sql = sql[:-4]
         return self.run(sql)
 
@@ -389,57 +411,63 @@ class databass:
         if add!=[]:
             for a in add:
                 sql += " ADD COLUMN IF NOT EXISTS "
-                sql += "`{}` {} {} {} {}, ".format(a["Field"], 
-                a["Type"], 
-                ("NOT NULL" if a["Null"]=="NO" else "") if "NULL" in a else "", 
+                sql += "`{}` {} {} {} {}, ".format(a["Field"],
+                a["Type"],
+                ("NOT NULL" if a["Null"]=="NO" else "") if "NULL" in a else "",
                 ("DEFAULT({})".format(a["Default"]) if a["Default"]!="None" else "") if "Default" in a else "",
                 a["Extra"] if "Extra" in a else "")
             sql = sql [:-2]
         #print(sql)
         return self.run(sql)
 
+    def clear(self, table: str) -> str:
+        '''Clears/truncates all rows in a table'''
+        if table not in self.tables():
+            return "Error, no such table"
+        return self.run("TRUNCATE TABLE " + table)
+
     '''Feed generators'''
     def FeedCreate(self, tableconfigs):
         '''Returns a feed for the create operation to be read by EatFeed() on another server.
-        
+
         The feeds need to be put in a list afterwards.'''
         return {"operation":"create", "tableconfigs":tableconfigs}
 
     def FeedAlterTable(self, table, add=[], drop=[]):
         '''Returns a feed for the alter operation to be read by EatFeed() on another server.
-        
+
         The feeds need to be put in a list afterwards.'''
         return {"operation":"alter table", "table":table, "add":add, "drop":drop}
-        
+
     def FeedDrop(self, table):
         '''Returns a feed for the drop operation to be read by EatFeed() on another server.
-        
+
         The feeds need to be put in a list afterwards.'''
         return {"operation":"drop", "table":table}
-        
+
     def FeedInsert(self, table, data):
         '''Returns a feed for the insert operation to be read by EatFeed() on another server.
-        
+
         The feeds need to be put in a list afterwards.'''
         return {"operation":"insert", "table":table, "data":data}
 
     def FeedUpdate(self, table, data, where={}, wherenot={}):
         '''Returns a feed for the update operation to be read by EatFeed() on another server.
-        
+
         The feeds need to be put in a list afterwards.'''
         return {"operation":"update", "table":table, "data" : data, "where" : where, "wherenot" : wherenot }
-    
+
     def FeedDelete(self, table, where={}, wherenot={}):
         '''Returns a feed for the delete operation to be read by EatFeed() on another server.
-        
+
         The feeds need to be put in a list afterwards.'''
         return {"operation":"delete", "table": table, "where" : where, "wherenot" : wherenot }
 
     def GenerateFeed(self, feed):
         '''Generated a json string from the list of feeds in feed.
         This is the thing you are supposed to put in the feed for databass
-        to eat on the other side. It contains the keyword "bassfeed". 
-        Other then that you can add  whatever server information you like 
+        to eat on the other side. It contains the keyword "bassfeed".
+        Other then that you can add  whatever server information you like
         to the json before you put it in the actual feed.'''
         return json.dumps({"bassfeed":feed})
 
@@ -475,9 +503,9 @@ class databass:
         return self.delete(table, where, wherenot)
 
     def EatFeed(self, feed):
-        '''This functions reads a feed, handles it and does operations 
+        '''This functions reads a feed, handles it and does operations
         to the database.
-        
+
         feed: a json string with atleast the keyword "bassfeed" in it.
         '''
         #if "`" in feed:
@@ -497,9 +525,9 @@ class databass:
         for f in feeds["bassfeed"]:
             ret += str(self._feedeaters[f["operation"]](f)) + " "
         return ret
-    
+
 def shorten(data, maxlen=50):
-    '''Shortens the contents of a list of dictionaries to make it 
+    '''Shortens the contents of a list of dictionaries to make it
     more eye friendly when printed with tabulate.
     data: A list of dictionaries
     '''
@@ -522,4 +550,4 @@ def printrows(rows, format = "fancy_grid"):
             print(rows)
     else:
         print(rows)
-    
+
