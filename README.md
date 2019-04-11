@@ -1,4 +1,7 @@
 # Databass
+In Python we store large amounts of data in lists of dicitonaries. So it is 
+logical to do database operatings with and on lists of dictionaries.
+
 Databass is a interface meant to simplyfy database transactions in Python 
 by letting you use dictionaries and list of dictionaries for your transactions
 instead of writing pure SQL-code. Thus easily letting you generate and read 
