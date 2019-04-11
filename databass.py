@@ -47,9 +47,9 @@ import json
 
 class databass:
     '''Class that simplifies database connections.'''
-    __version__ = 0.4
+    __version__ = 0.5
 
-    def __init__(self, config):
+    def __init__(self, config: dict, verbose: bool=False):
         '''Config format:
         config = {'user'     : 'root',
                   'password' : 'pass',
@@ -57,10 +57,11 @@ class databass:
                   'port'     : '3306',
                   'database' : 'test'}'''
         self._bass = MariaDB.connect(**config)
+        self.verbose=verbose
         #self._cursor  = self._bass.cursor(dictionary=True)
 
         # Feed eating functions
-        self._feedeaters ={}
+        self._feedeaters={}
         self._feedeaters["create"]      = self.EatCreate
         self._feedeaters["alter table"] = self.EatAlterTable
         self._feedeaters["drop"]        = self.EatDrop
@@ -68,13 +69,13 @@ class databass:
         self._feedeaters["update"]      = self.EatUpdate
         self._feedeaters["delete"]      = self.EatDelete
 
-
-    def run(self, sql):
+    def run(self, sql: str) -> Union[list, bool, str]:
         '''Runs a query.
            Returns a list of dictionaries on successfull SELECT.
         '''
         cursor = self._bass.cursor(dictionary=True)
-        #print("run:", sql)
+        if self.verbose:
+            print("run sql =", sql)
         try:
             cursor.execute(sql)
         except MariaDB.Error as err:
@@ -93,7 +94,9 @@ class databass:
 
     def _run(self, sql, values):
         '''A runs prepared statement and returns a list of dictionaries.
+        This is on the TODO-list. Don't use it yet!!
         '''
+        assert(False)
         cursor = self._bass.cursor(prepared=True)
         print("run:", sql, values)
         print("sql    =", sql)
@@ -123,17 +126,17 @@ class databass:
             cursor.close()
             return True
 
-    def count(self, table):
+    def count(self, table: str) -> Union[str, bool]:
         '''Returns the number of rows in a given table.'''
         if table not in self.tables():
             return False
         return self.run("SELECT count(*) FROM `{}`".format(table))[0]["count(*)"]
 
-    def name(self):
+    def name(self) -> str:
         '''Returns the name of the currently selected database.'''
         return self.run("SELECT DATABASE()")[0]["DATABASE()"]
 
-    def tables(self):
+    def tables(self) -> list:
         '''Returns a list of tables in the database.'''
         result = self.run("SHOW tables")
         tables = []
@@ -142,7 +145,7 @@ class databass:
             tables.append(table["Tables_in_" + name])
         return tables
 
-    def colums(self, table):
+    def colums(self, table: str) -> Union[list, bool]:
         '''Returns all the column in the table'''
         if table not in self.tables():
             return False
@@ -152,25 +155,25 @@ class databass:
             ret.append(c["Field"])
         return ret
 
-    def info(self, table):
+    def info(self, table: str) -> Union[str, bool]:
         '''Returns detailed table info in dictionary form'''
         if table not in self.tables():
             return False
         return self.run("DESCRIBE `{}`".format(table))
 
-    def code(self, table):
+    def code(self, table: str) -> Union[str, bool]:
         '''Returns the code used to create the table'''
         if table not in self.tables():
             return False
         return self.run("SHOW CREATE TABLE `{}`".format(table))[0]["Create Table"]
 
-    def drop(self, table):
+    def drop(self, table: str) -> Union[bool, str]:
         '''Drops the table'''
         if table not in self.tables():
             return False
         return self.run("DROP TABLE `{}`".format(table))
 
-    def create(self, tableconfigs):
+    def create(self, tableconfigs: dict) -> list:
         '''Creates a table according to the given configuration.
         This used the same syntax that MariaDB used when you DESCRIBE a table
         tableconfigs is a dictionary of the format
@@ -205,7 +208,7 @@ class databass:
                     "Extra": "auto_increment"
                 },
                 {
-                    "Field": "tid",
+                    "Field": "time",
                     "Type": "double",
                     "Null": "YES",
                     "Key": "",
@@ -225,19 +228,7 @@ class databass:
                 ("NOT NULL" if column["Null"]=="NO" else "") if "NULL" in column else "",
                 ("DEFAULT({})".format(column["Default"]) if column["Default"]!="None" else "") if "Default" in column else "",
                 column["Extra"] if "Extra" in column else "")
-
-            # sql += "PRIMARY KEY("
-
-            # for column in tableconfigs[t]:
-                # if "Key" in column:
-                    # if column["Key"]=="PRI":
-                        # sql += column["Field"] + ", "
-            # if sql.endswith(", "):
-                # sql = sql[:-2]
-            # sql = sql + ") )"
-
             keys = "PRIMARY KEY("
-
             for column in tableconfigs[t]:
                 if "Key" in column:
                     if column["Key"]=="PRI":
@@ -270,11 +261,11 @@ class databass:
             sql += "'{}', ".format(data[d].replace("'", "''"))
         sql = sql[:-2] + ") ON DUPLICATE KEY UPDATE "
         for d in data:
-            sql += "{}='{}', ".format(d, data[d].replace("'", "''"))
+            sql += "`{}`='{}', ".format(d, data[d].replace("'", "''"))
         sql = sql[:-2]
         return self.run(sql)
 
-    def insert(self, table, data):
+    def insert(self, table: str, data: Union[dict, list]) -> Union[bool, str]:
         '''Inserts data in to the table.
         data: a dictionary or a list of dictionaries with keywords equal to column names.
         '''
@@ -300,7 +291,7 @@ class databass:
         sql = sql[:-2]
         return self.run(sql)
 
-    def select(self, table, where={}, wherenot={}, columns = ["*"]):
+    def select(self, table: str, where: dict={}, wherenot: dict={}, columns: list=["*"]) -> Union[list, str, bool]:
         '''Selects rows from the given table where the contritions in condition is met.
         Currently only is equal and not equal conditions work. Making less than and
         grater than still requires handwritten SQL-code.
@@ -336,7 +327,7 @@ class databass:
             sql = sql[:-4]
         return self.run(sql)
 
-    def update(self, table, data, where={}, wherenot={}):
+    def update(self, table: str, data: dict, where: dict={}, wherenot: dict={}) -> Union[str, bool]:
         '''Updates an existing post in the database
         At least one of where and wherenot is required.'''
         if table not in self.tables():
@@ -367,7 +358,7 @@ class databass:
             sql = sql[:-4]
         return self.run(sql)
 
-    def delete(self, table, where={}, wherenot={}):
+    def delete(self, table: str, where: dict={}, wherenot: dict={}) -> Union[str, bool]:
         '''Deletes rows form the table where the conditions is met.
 
         DELETE FROM t1 WHERE c1
@@ -392,11 +383,10 @@ class databass:
             sql = sql[:-4]
         return self.run(sql)
 
-    def AlterTable(self, table, add=[], drop=[]):
+    def AlterTable(self, table: str, add: Union[list, dict]=[], drop: list=[]) -> Union[str, bool]:
         '''Alters a table'''
         if table not in self.tables():
             return False
-
 
         sql = "ALTER TABLE `{}`".format(table)
         if type(drop)==str:
@@ -420,7 +410,7 @@ class databass:
         #print(sql)
         return self.run(sql)
 
-    def clear(self, table: str) -> str:
+    def clear(self, table: str) -> Union[str, bool]:
         '''Clears/truncates all rows in a table'''
         if table not in self.tables():
             return "Error, no such table"
@@ -467,7 +457,7 @@ class databass:
         '''Generated a json string from the list of feeds in feed.
         This is the thing you are supposed to put in the feed for databass
         to eat on the other side. It contains the keyword "bassfeed".
-        Other then that you can add  whatever server information you like
+        Other then that you can add whatever server information you like
         to the json before you put it in the actual feed.'''
         return json.dumps({"bassfeed":feed})
 
@@ -526,7 +516,7 @@ class databass:
             ret += str(self._feedeaters[f["operation"]](f)) + " "
         return ret
 
-def shorten(data, maxlen=50):
+def shorten(data: list, maxlen: int=50) -> list:
     '''Shortens the contents of a list of dictionaries to make it
     more eye friendly when printed with tabulate.
     data: A list of dictionaries
@@ -539,7 +529,7 @@ def shorten(data, maxlen=50):
         ret.append(r)
     return ret
 
-def printrows(rows, format = "fancy_grid"):
+def printrows(rows: list, format: str = "fancy_grid") -> None:
     '''Pretty prints the list of dictionaries returned by databass.run()
     data: A list of dictionaries
     '''
