@@ -68,6 +68,7 @@ class databass:
         self._feedeaters["insert"]      = self.EatInsert
         self._feedeaters["update"]      = self.EatUpdate
         self._feedeaters["delete"]      = self.EatDelete
+        self._feedeaters["insup"]       = self.EatInsupd
 
     def run(self, sql: str) -> Union[list, bool, str]:
         '''Runs a query.
@@ -244,26 +245,29 @@ class databass:
             ret.append(self.run(sql))
         return ret
 
-    def insup(self, table: str, data: dict) -> Union[list, str]:
+    def insupd(self, table: str, data: Union[dict, list]) -> Union[list, str]:
         '''Inserts if not existing, updates on existing'''
-        if table not in self.tables():
-            return "Error, table not in database"
-        tableColums = self.colums(table)
-        for column in data.keys():
-            if column not in tableColums:
-                return "Error, column not in table"
+        if type(data)==list:
+            return [self.insupd(table, d) for d in data]
+        else:
+            if table not in self.tables():
+                return "Error, table {} not in database".format(table)
+            tableColums = self.colums(table)
+            for column in data.keys():
+                if column not in tableColums:
+                    return "Error, column {} not in table {}".format(column, table)
 
-        sql = "INSERT INTO `{}` (".format(table)
-        for d in data:
-            sql += "`{}`, ".format(d)
-        sql = sql[:-2] + ") VALUES("
-        for d in data:
-            sql += "'{}', ".format(data[d].replace("'", "''"))
-        sql = sql[:-2] + ") ON DUPLICATE KEY UPDATE "
-        for d in data:
-            sql += "`{}`='{}', ".format(d, data[d].replace("'", "''"))
-        sql = sql[:-2]
-        return self.run(sql)
+            sql = "INSERT INTO `{}` (".format(table)
+            for d in data:
+                sql += "`{}`, ".format(d)
+            sql = sql[:-2] + ") VALUES("
+            for d in data:
+                sql += "'{}', ".format(data[d].replace("'", "''"))
+            sql = sql[:-2] + ") ON DUPLICATE KEY UPDATE "
+            for d in data:
+                sql += "`{}`='{}', ".format(d, data[d].replace("'", "''"))
+            sql = sql[:-2]
+            return self.run(sql)
 
     def insert(self, table: str, data: Union[dict, list]) -> Union[bool, str]:
         '''Inserts data in to the table.
@@ -359,10 +363,7 @@ class databass:
         return self.run(sql)
 
     def delete(self, table: str, where: dict={}, wherenot: dict={}) -> Union[str, bool]:
-        '''Deletes rows form the table where the conditions is met.
-
-        DELETE FROM t1 WHERE c1
-        '''
+        '''Deletes rows form the table where the conditions is met.'''
         if table not in self.tables():
             return False
         tableColums = self.colums(table)
@@ -383,7 +384,7 @@ class databass:
             sql = sql[:-4]
         return self.run(sql)
 
-    def AlterTable(self, table: str, add: Union[list, dict]=[], drop: list=[]) -> Union[str, bool]:
+    def AlterTable(self, table: str, add: Union[list, dict]=[], drop: Union[list, str]=[]) -> Union[str, bool]:
         '''Alters a table'''
         if table not in self.tables():
             return False
@@ -407,7 +408,6 @@ class databass:
                 ("DEFAULT({})".format(a["Default"]) if a["Default"]!="None" else "") if "Default" in a else "",
                 a["Extra"] if "Extra" in a else "")
             sql = sql [:-2]
-        #print(sql)
         return self.run(sql)
 
     def clear(self, table: str) -> Union[str, bool]:
@@ -417,43 +417,49 @@ class databass:
         return self.run("TRUNCATE TABLE " + table)
 
     '''Feed generators'''
-    def FeedCreate(self, tableconfigs):
+    def FeedCreate(self, tableconfigs: dict) -> dict:
         '''Returns a feed for the create operation to be read by EatFeed() on another server.
 
         The feeds need to be put in a list afterwards.'''
         return {"operation":"create", "tableconfigs":tableconfigs}
 
-    def FeedAlterTable(self, table, add=[], drop=[]):
+    def FeedAlterTable(self, table: str, add: list=[], drop: Union[list, str]=[]) -> dict:
         '''Returns a feed for the alter operation to be read by EatFeed() on another server.
 
         The feeds need to be put in a list afterwards.'''
         return {"operation":"alter table", "table":table, "add":add, "drop":drop}
 
-    def FeedDrop(self, table):
+    def FeedDrop(self, table: str) -> dict:
         '''Returns a feed for the drop operation to be read by EatFeed() on another server.
 
         The feeds need to be put in a list afterwards.'''
         return {"operation":"drop", "table":table}
 
-    def FeedInsert(self, table, data):
+    def FeedInsert(self, table: str, data: dict) -> dict:
         '''Returns a feed for the insert operation to be read by EatFeed() on another server.
 
         The feeds need to be put in a list afterwards.'''
         return {"operation":"insert", "table":table, "data":data}
 
-    def FeedUpdate(self, table, data, where={}, wherenot={}):
+    def FeedUpdate(self, table: str, data: dict, where: dict={}, wherenot: dict={}) -> dict:
         '''Returns a feed for the update operation to be read by EatFeed() on another server.
 
         The feeds need to be put in a list afterwards.'''
-        return {"operation":"update", "table":table, "data" : data, "where" : where, "wherenot" : wherenot }
+        return {"operation":"update", "table":table, "data":data, "where":where, "wherenot":wherenot }
 
-    def FeedDelete(self, table, where={}, wherenot={}):
+    def FeedInsupd(self, table: str, data: Union[list, dict]) -> dict:
+        '''Returns a feed for the insert/update operation to be read by EatFeed() on another server.
+
+        The feeds need to be put in a list afterwards.'''
+        return {"operation":"insup", "table":table, "data":data}
+
+    def FeedDelete(self, table: str, where: dict={}, wherenot: dict={}) -> dict:
         '''Returns a feed for the delete operation to be read by EatFeed() on another server.
 
         The feeds need to be put in a list afterwards.'''
         return {"operation":"delete", "table": table, "where" : where, "wherenot" : wherenot }
 
-    def GenerateFeed(self, feed):
+    def GenerateFeed(self, feed: list) -> str:
         '''Generated a json string from the list of feeds in feed.
         This is the thing you are supposed to put in the feed for databass
         to eat on the other side. It contains the keyword "bassfeed".
@@ -462,54 +468,47 @@ class databass:
         return json.dumps({"bassfeed":feed})
 
     '''Feed readers, because a feed is bass food in this case'''
-    def EatCreate(self, feed):
+    def EatCreate(self, feed: dict):
         return self.create(feed["tableconfigs"])
 
-    def EatAlterTable(self, feed):
+    def EatAlterTable(self, feed: dict) -> Union[str, bool]:
         table = feed["table"]
         add   = feed["add"]
         drop  = feed["drop"]
         return self.AlterTable(table, add, drop)
 
-    def EatDrop(self, feed):
+    def EatDrop(self, feed: dict) -> Union[bool, str]:
         return self.drop(feed["table"])
 
-    def EatInsert(self, feed):
+    def EatInsert(self, feed: dict) -> Union[bool, str]:
         table = feed["table"]
         data  = feed["data"]
         return self.insert(table, data)
 
-    def EatUpdate(self, feed):
+    def EatUpdate(self, feed: dict) -> Union[str, bool]:
         table    = feed["table"]
         data     = feed["data"]
         where    = feed["where"]
         wherenot = feed["wherenot"]
         return self.update(table, data, where, wherenot)
 
-    def EatDelete(self, feed):
+    def EatInsupd(self, feed: dict) -> Union[list, str]:
+        table    = feed["table"]
+        data     = feed["data"]
+        return self.insupd(table, data)
+
+    def EatDelete(self, feed: dict) -> Union[str, bool]:
         table    = feed["table"]
         where    = feed["where"]
         wherenot = feed["wherenot"]
         return self.delete(table, where, wherenot)
 
-    def EatFeed(self, feed):
+    def EatFeed(self, feed: str) -> str:
         '''This functions reads a feed, handles it and does operations
         to the database.
 
         feed: a json string with atleast the keyword "bassfeed" in it.
         '''
-        #if "`" in feed:
-        #    print()
-        #    print("` in feed.")
-        #    print("` is not allowed in feed.")
-        #    print("Suspected SQL injection.")
-        #    print("Suspected malicious feed.")
-        #    print("Feed not processed.")
-        #    print("-"*25)
-        #    print(feed)
-        #    print("-"*25)
-        #    print()
-        #    return False
         feeds = json.loads(feed)
         ret = ""
         for f in feeds["bassfeed"]:
