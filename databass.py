@@ -68,7 +68,7 @@ class databass:
         self._feedeaters["insert"]      = self.EatInsert
         self._feedeaters["update"]      = self.EatUpdate
         self._feedeaters["delete"]      = self.EatDelete
-        self._feedeaters["insup"]       = self.EatInsupd
+        self._feedeaters["insupd"]      = self.EatInsupd
 
     def run(self, sql: str) -> Union[list, bool, str]:
         '''Runs a query.
@@ -80,11 +80,10 @@ class databass:
         try:
             cursor.execute(sql)
         except MariaDB.Error as err:
+            cursor.close()
             return "Database Error: " + str(err)
         if cursor.description:
-            ret=[]
-            for row in cursor:
-                ret.append(row)
+            ret=cursor.fetchall()
             self._bass.commit()
             cursor.close()
             return ret
@@ -451,7 +450,7 @@ class databass:
         '''Returns a feed for the insert/update operation to be read by EatFeed() on another server.
 
         The feeds need to be put in a list afterwards.'''
-        return {"operation":"insup", "table":table, "data":data}
+        return {"operation":"insupd", "table":table, "data":data}
 
     def FeedDelete(self, table: str, where: dict={}, wherenot: dict={}) -> dict:
         '''Returns a feed for the delete operation to be read by EatFeed() on another server.
