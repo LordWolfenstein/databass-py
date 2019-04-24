@@ -70,54 +70,28 @@ class databass:
         self._feedeaters["delete"]      = self.EatDelete
         self._feedeaters["insupd"]      = self.EatInsupd
 
-    def run(self, sql: str) -> Union[list, bool, str]:
+    def run(self, sql: str, *args: Union[tuple, str]) -> Union[list, bool, str]:
         '''Runs a query.
            Returns a list of dictionaries on successfull SELECT.
         '''
+        # TODO: add **kwargs
         cursor = self._bass.cursor(dictionary=True)
         if self.verbose:
-            print("run sql =", sql)
+            print("sql  =", sql)
+            print("args =", args)
         try:
-            cursor.execute(sql)
+            if len(args)>0:
+                if type(args[0])==tuple:
+                    cursor.execute(sql, *args) # at db.run(sql, ("219154664", "CPU0_PVCCIO")) I think...
+                if type(args[0])==str:
+                    cursor.execute(sql, args) # at db.run(sql, "219154664", "CPU0_PVCCIO") I hope...
+            else:
+                cursor.execute(sql)
         except MariaDB.Error as err:
             cursor.close()
             return "Database Error: " + str(err)
         if cursor.description:
             ret=cursor.fetchall()
-            self._bass.commit()
-            cursor.close()
-            return ret
-        else:
-            self._bass.commit()
-            cursor.close()
-            return True
-
-    def _run(self, sql, values):
-        '''A runs prepared statement and returns a list of dictionaries.
-        This is on the TODO-list. Don't use it yet!!
-        '''
-        assert(False)
-        cursor = self._bass.cursor(prepared=True)
-        print("run:", sql, values)
-        print("sql    =", sql)
-        print("values =", values)
-        try:
-            cursor.execute(sql, values)
-        except MariaDB.Error as err:
-            return "Database Error: " + str(err)
-        if cursor.description:
-            ret = []
-            for row in cursor:
-                r = {}
-                i = 0
-                for column in row:
-					#if type(column)==unicode or type(column) == int or type(column) == str: # for Python2 use this
-                    if type(column) == int or type(column) == str:
-                        r[cursor.column_names[i]] = column
-                    else:
-                        r[cursor.column_names[i]] = str(column)
-                    i += 1
-                ret.append(r)
             self._bass.commit()
             cursor.close()
             return ret
@@ -261,10 +235,20 @@ class databass:
                 sql += "`{}`, ".format(d)
             sql = sql[:-2] + ") VALUES("
             for d in data:
-                sql += "'{}', ".format(data[d].replace("'", "''"))
+                if type(data[d])==str:
+                    sql += "'{}', ".format(data[d].replace("'", "''"))
+                elif d==None:
+                    sql += "null, "
+                else:
+                    sql += "{}, ".format(data[d])
             sql = sql[:-2] + ") ON DUPLICATE KEY UPDATE "
             for d in data:
-                sql += "`{}`='{}', ".format(d, data[d].replace("'", "''"))
+                if type(data[d])==str:
+                    sql += "`{}`='{}', ".format(d, data[d].replace("'", "''"))
+                elif d==None:
+                    sql += "`{}`=null, ".format(d)
+                else:
+                    sql += "`{}`={}, ".format(d, data[d])
             sql = sql[:-2]
             return self.run(sql)
 
@@ -289,7 +273,12 @@ class databass:
         for l in data:
             sql+= "("
             for d in l:
-                sql += "'{}', ".format(l[d].replace("'", "''"))
+                if type(l[d])==str:
+                    sql += "'{}', ".format(l[d].replace("'", "''"))
+                elif d==None:
+                    sql += "null, "
+                else:
+                    sql += "{}, ".format(l[d])
             sql = sql[:-2] + "), "
         sql = sql[:-2]
         return self.run(sql)
