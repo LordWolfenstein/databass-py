@@ -1,5 +1,34 @@
-'''
-DataBass but for SQLite
+'''Databass is a interface meant to simplify database transactions in Python
+by letting you use dictionaries and list of dictionaries for your transactions
+instead of writing pure SQL-code. Thus easily letting you generate and read
+JSON-feeds. Preferably over HTTPS.
+The syntax for doing operations and generating feeds is identical. And the
+result from reading the feed is identical to as if the operation were done
+locally.
+(Only tested with Python 3. (Automatic JOIN with dictionaries is on the TODO
+list. But you can still write your own SQL and get the list of dictionaries
+from joined SELECTS.))
+NAME
+Databass is a punmanteau from "data" and "bass" because bass sound like base.
+And you can feed the bass. Bass feed is much funnier than Atom feed.
+Copyright (C) 2018 Lord Wolfenstein
+https://github.com/LordWolfenstein/databass
+MIT License
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 '''
 import sqlite3
 from tabulate import tabulate
