@@ -30,8 +30,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 '''
+import re
 import sqlite3
-from tabulate import tabulate
+from lib.tabulate import tabulate
 from typing import Union
 
 class DataBassLite:
@@ -67,6 +68,67 @@ class DataBassLite:
         cur.execute(query)
         columns = cur.description
         ret = [column[0] for column in columns]
+        return ret
+
+    def create(self, tableconfig: dict) -> list:
+        '''Creates a table from a dictionary
+           TODO: Fix to the datatypes in the dictionary to match the other databass.
+                 The end goal it to make them 100% compatible. (But this will have to do for now!)
+           tableconfigs = {
+                "tablename1" :
+                [
+                    {
+                        "Field": "id",
+                        "Type": "INT",
+                        "Key": "PRI"
+                    },
+                    {
+                        "Field": "text",
+                        "Type": "text",
+                        "Key": ""
+                    }
+                ],
+                "tablename2" :
+                [
+                    {
+                        "Field": "id",
+                        "Type": "INT",
+                        "Key": "PRI"
+                    },
+                    {
+                        "Field": "time",
+                        "Type": "double",
+                        "Key": ""
+                    }
+                ]
+            }
+        '''
+        ret = []
+        for table in tableconfig:
+            pattern = re.compile("[a-zA-Z0-9_ ]*")
+            if table in self.tables():
+                ret.append("Table {} already exists".format(table))
+            elif not pattern.fullmatch(table):
+                ret.append("Table {} contains illigal characters.".format(table))
+            else:
+                columns = []
+                keys = []
+                for column in tableconfig[table]:
+                    if not pattern.fullmatch(column["Field"]):
+                        ret.append("Column {} contain illigal characters.".format(column["Field"]))
+                        continue
+                    columns.append("{} {}".format(column["Field"], column["Type"]))
+                    if column["Key"].upper() == "PRI":
+                        keys.append(column["Field"])
+                columns = ",\n".join(columns)
+                keys = ", ".join(keys)
+                query = """--begin-sql
+                CREATE TABLE {}
+                ({},
+                PRIMARY KEY({}));
+                """.format(table, columns, keys)
+                # print(query)
+                ret.append(self.run(query))
         return ret
 
     def primary_keys(self, table):
@@ -195,18 +257,12 @@ class DataBassLite:
     def insupd(self, table: str, data: Union[dict, list]) -> Union[list, str]:
         '''Inserts if not existing, updates on existing'''
         if isinstance(data, list):
-            print("insupd list")
             return [self.insupd(table, d) for d in data]
         if self._exists(table, data):
             prim = self.primary_keys(table)
             deletedata = {key: data[key] for key in data if key in prim}
             self.delete(table, deletedata)
         return self.insert(table, data)
-
-    def create_table(self, code: str) -> bool:
-        '''TODO: put in a check do no table or column got the name "PRIMARY KEY"'''
-        print(code)
-        return False
 
     def drop(self, table: str) -> None:
         '''Drops a table.'''
@@ -237,7 +293,7 @@ class DataBassLite:
         return result
 
 def printrows(rows: list, grid: str = "presto") -> None:
-    '''Pretty prints the list of dictionaries returned by databass.run()
+    '''Pretty prints the list of dictionaries returned by DataBassLite.run()
     data: A list of dictionaries
     '''
     if isinstance(rows, list):
