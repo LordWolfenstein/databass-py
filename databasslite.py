@@ -32,7 +32,7 @@ SOFTWARE.
 '''
 import re
 import sqlite3
-from lib.tabulate import tabulate
+from tabulate import tabulate
 from typing import Union
 
 class DataBassLite:
